@@ -1,0 +1,10 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import './styles.css';
+import App from './App';
+import { AuthProvider } from './auth/AuthContext';
+import { DataProvider } from './data/DataContext';
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AuthProvider><DataProvider><App /></DataProvider></AuthProvider></React.StrictMode>);

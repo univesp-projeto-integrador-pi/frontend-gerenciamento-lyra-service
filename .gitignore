@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.development
+*.local
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.publication/
+reference/*
+!reference/verify-*.mjs
+!reference/test-browser.mjs
