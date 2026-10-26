@@ -1,0 +1,11 @@
+import { HomeIcon } from '../home/HomeIcon';
+import type { Work } from '../../data/models';
+export function WorkCard({ work }: { work: Work }) {
+  return <article className="flex h-[344px] min-w-0 flex-1 flex-col justify-between overflow-hidden rounded-[14px] border border-[#dce4ed] bg-white p-6 shadow-[0px_4px_16px_0px_rgba(23,59,100,0.04)]">
+    <div className="flex items-center justify-between"><span className="flex size-12 items-center justify-center rounded-[10px] bg-[#e8f2fc]"><HomeIcon name="imgSimbolo16" source="works" /></span><span className={`flex items-center gap-1.5 rounded-full px-2.5 py-[5px] text-xs font-semibold ${work.attention === undefined ? 'bg-[#eef3f8] text-muted' : work.attention ? 'bg-[#fff3dc] text-[#d97706]' : 'bg-[#e8f6f0] text-[#167a52]'}`}>{work.attention !== undefined && <HomeIcon name={work.attention ? 'imgIndicador1' : 'imgIndicador'} source="works" />}{work.attention === undefined ? 'Não informada' : work.attention ? 'Atenção' : 'Em dia'}</span></div>
+    <div className="flex flex-col gap-1.5"><h3 className="text-xl font-bold">{work.name}</h3><p className="flex items-center gap-1.5 text-xs text-muted"><HomeIcon name="imgSimbolo17" source="works" />{work.location ?? 'Localização não informada'}</p></div>
+    <div className="flex flex-col gap-2"><div className="flex items-start justify-between"><span className="text-xs text-muted">Progresso físico</span><span className="text-[13px] font-bold text-primary">{work.progress === undefined ? 'Não informado' : `${work.progress}%`}</span></div><div role="progressbar" aria-label={`Progresso de ${work.name}`} aria-valuenow={work.progress} aria-valuemin={0} aria-valuemax={100} className="h-[7px] overflow-hidden rounded-full bg-[#eef3f8]"><div style={{ width: `${work.progress ?? 0}%` }} className="h-full rounded-full bg-primary" /></div></div>
+    <div className="flex flex-col gap-2 text-[13px] text-muted"><p className="flex items-center gap-2"><HomeIcon name="imgSimbolo18" source="works" />{work.workers === undefined ? 'Equipe não informada' : `${work.workers} em campo`}</p><p>Resp. {work.manager ?? 'Não informado'}</p></div>
+    <button type="button" className="flex w-full items-center justify-between border-t border-[#e8edf3] pt-[14px] text-[13px] font-semibold text-primary">Ver obra<HomeIcon name="imgSimbolo19" source="works" /></button>
+  </article>;
+}
