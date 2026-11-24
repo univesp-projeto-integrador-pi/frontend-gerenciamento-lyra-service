@@ -1,9 +1,8 @@
-import { launchBrowser } from './test-browser.mjs';
+import { launchBrowser, mockCredentials } from './test-browser.mjs';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const source = readFileSync('src/auth/MockAuthService.ts', 'utf8');
-const email = source.match(/email: '([^']+)'/)[1];
-const password = source.match(/password: '([^']+)'/)[1];
+const { email, password } = mockCredentials();
 const name = source.match(/name: '([^']+)'/)[1];
 const mockId = source.match(/id: '([^']+)'/)[1];
 const key = readFileSync('src/auth/mockSession.ts', 'utf8').match(/MOCK_SESSION_KEY = '([^']+)'/)[1];

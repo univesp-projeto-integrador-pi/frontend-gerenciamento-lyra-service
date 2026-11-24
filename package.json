@@ -4,13 +4,24 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host localhost --port 5173 --strictPort",
+    "dev:mock": "vite --mode mock --host localhost --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:routes": "node reference/verify-routes.mjs",
     "test:data": "node reference/verify-data.mjs",
-    "test:auth": "node reference/verify-auth.mjs"
+    "test:auth": "node reference/verify-auth.mjs",
+    "test:users": "node reference/verify-users.mjs",
+    "test:flows": "node reference/verify-flows.mjs",
+    "test:records-api": "node reference/verify-records-api.mjs",
+    "dev:api": "vite --mode api --host localhost --port 5173 --strictPort",
+    "build:api": "npm run build",
+    "test:http-auth": "node reference/verify-http-auth.mjs",
+    "test:api-crud": "node reference/verify-api-crud.mjs",
+    "test:work-deletion": "node reference/verify-work-deletion.mjs",
+    "test:integration-config": "node reference/verify-integration-config.mjs",
+    "test:real-readonly": "node reference/verify-real-readonly.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.0",

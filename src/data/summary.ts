@@ -1,5 +1,6 @@
 import type { Collection } from './DataContext';
-import type { Work } from './models';
+import type { Work, Employee } from './models';
+export function presenceCount(collection: Collection<Employee>, status: Employee['status'] = 'Em campo') { return import.meta.env.VITE_DATA_MODE === 'api' ? '—' : countFlag(collection, record => record.status === undefined ? undefined : record.status === status); }
 export const countLabel = <T>(collection: Collection<T>, predicate: (record: T) => boolean = () => true): number | string => collection.status === 'ready' ? collection.records.filter(predicate).length : '—';
 export function countFlag<T>(collection: Collection<T>, flag: (record: T) => boolean | undefined): number | string {
   if (collection.status !== 'ready' || !collection.records.every(record => flag(record) !== undefined)) return '—';
@@ -12,6 +13,6 @@ export function workSummary(works: Work[]) {
   return {
     active: complete('active') ? works.filter(work => work.active === true).length : '—',
     progress: works.length && complete('progress') ? `${Math.round(works.reduce((sum, work) => sum + work.progress!, 0) / works.length)}%` : '—',
-    inspections: complete('inspectionDate') ? works.filter(work => work.inspectionDate === today).length : '—',
+    inspections: import.meta.env.VITE_DATA_MODE !== 'api' && complete('inspectionDate') ? works.filter(work => work.inspectionDate === today).length : '—',
   };
 }

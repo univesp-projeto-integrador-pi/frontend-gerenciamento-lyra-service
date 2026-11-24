@@ -1,60 +1,130 @@
 # Lyra Service — Frontend
 
-Frontend de gerenciamento de obras, equipes, documentos e EPIs em React 19, TypeScript, Vite 6, Tailwind CSS 4 e React Router 7. Os componentes, ícones SVG, imagens e a identidade CleanPro do layout original do Figma foram preservados. Fontes Inter são servidas localmente por `@fontsource/inter`.
+Aplicação React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + React Router 7 para gerenciamento de obras, funcionários e contas. Mantém os componentes e assets locais do Figma. O backend existente é Node.js/Express/Prisma/PostgreSQL, em um projeto separado.
 
-## Executar
+## Instalar e executar
 
-Pré-requisitos: Node.js e npm (validado com Node.js 24.14.0 e npm 11.9.0). Não há backend nem banco de dados para instalar.
+Requisitos: Node.js 24 e npm. No Windows com scripts PowerShell desabilitados, use `npm.cmd` em vez de `npm`.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-No PowerShell com scripts desabilitados, utilize `npm.cmd`.
+Acesse **http://localhost:5173**. `npm run dev` usa `.env.development`; `npm run dev:api` usa `.env.api`. Ambos iniciam a integração real (somente configuração pública):
 
-O servidor informa o endereço local, normalmente `http://localhost:5173`. As configurações públicas `.env.development` já habilitam a autenticação fictícia e os registros locais apenas em desenvolvimento. Para personalizar, use um arquivo `.env.development.local`, ignorado pelo Git; `.env.example` documenta as opções. Nunca coloque segredos em variáveis `VITE_*`, pois elas podem ser incluídas no código do navegador.
+```dotenv
+VITE_API_URL=http://localhost:3000
+VITE_AUTH_MODE=api
+VITE_DATA_MODE=api
+```
 
-Conta exclusivamente demonstrativa: **admin@teste.com**, senha **Admin123!**. Não é uma credencial real; sua definição está em `src/auth/MockAuthService.ts`. Em produção o login mock é bloqueado, e as implementações reais de autenticação/dados ainda precisam ser integradas.
+`VITE_API_URL` representa a origem do backend, **sem /api**, credenciais, query ou fragmento. Não coloque segredos em variáveis VITE_*. É possível sobrescrever valores em `.env.api.local`, ignorado pelo Git, ou no ambiente do processo. `VITE_API_BASE_URL` continua como alias antigo quando VITE_API_URL não está definida; configurações novas devem usar VITE_API_URL.
+
+No backend, `FRONTEND_ORIGIN` deve ser exatamente `http://localhost:5173`. Não misture localhost com 127.0.0.1 na integração real: são hosts diferentes para cookies e CORS. O script usa porta fixa para não mudar a origem silenciosamente.
+
+## Executar o backend existente
+
+No diretório `../backend`, em outro terminal, siga o README daquele projeto. Com dependências, PostgreSQL, variáveis privadas e tabelas já preparados:
 
 ```sh
-npm.cmd run build
-npm.cmd run preview
+npm run prisma:generate
+npm run dev
 ```
 
-`build` verifica TypeScript e gera `dist`; `preview` serve esse resultado localmente e não ativa o mock. Ao hospedar a SPA futuramente, configure fallback para `index.html` nas rotas do React Router.
+O backend deve responder em `http://localhost:3000/health`. A origem do frontend, cookies HttpOnly/SameSite, CSRF e permissões continuam sob as regras do servidor. Não desabilite CORS/CSRF para resolver configuração.
 
-## Estrutura e verificações
+**Verificação em 14/11/2026:** um cadastro autorizado pela interface retornou HTTP 201 e teve sua persistência confirmada no PostgreSQL. O registro permaneceu visível após recarregar a Home e os detalhes. Veja o [diagnóstico de consistência](docs/integration-consistency.md).
 
-```text
-src/auth/          Contrato de autenticação, mock, contexto e proteção de rotas
-src/data/          Entidades, contratos CRUD, adapters locais e contexto de dados
-src/components/    Login, Home, Obras, Funcionários, Docs, EPI e componentes compartilhados
-public/assets/     Imagens e SVGs originais, armazenados localmente
-reference/         Scripts de validação do navegador
+Não execute a suíte de testes do backend contra o banco de desenvolvimento: ela faz TRUNCATE e exige uma base separada terminada em _test. Não há .env.test local neste momento.
+
+## Autenticação e permissões
+
+O cliente HTTP usa `credentials: include`, token CSRF apenas em memória e `X-CSRF-Token` em mutações, inclusive login. Renova CSRF após a mudança de sessão; diferencia 403 de autorização e CSRF e não repete mutações automaticamente. Uma falha de comunicação gera erro, nunca dados mock como substitutos.
+
+ApiAuthService converte `password` em `senha` na camada de serviço. Após login consulta `/api/auth/me`, recupera o vínculo real com funcionário e confirma papel/flag de senha provisória. A identificação visual usa o e-mail, pois autenticação não retorna nome completo. Recarregar restaura a sessão pelo cookie e /me. Não há JWT ou persistência de senha/sessão real em localStorage.
+
+Senha provisória direciona para `/alterar-senha` e impede consultas protegidas. Logout está disponível no painel do perfil. Se o servidor não confirmar a saída, a aplicação mostra erro e preserva a sessão visível. Expiração limpa a identidade e os dados em memória. Retomar a aba verifica novamente a sessão; mudança de papel/usuário reinicia o escopo de dados e cancela respostas antigas.
+
+- **ADMIN:** contas, auditoria, funcionários, obras e alocações.
+- **GESTOR:** consulta funcionários sem salário; administra obras/alocações.
+- **FUNCIONARIO:** consulta somente o próprio funcionário vinculado e as obras/alocações permitidas pelo servidor; não lista todos os funcionários.
+- As proteções de interface acompanham as regras fixas do backend. O servidor é a autoridade definitiva.
+
+## Recursos da API
+
+| Recurso | Operações |
+|---|---|
+| Autenticação | POST login/logout/trocar-senha, GET me em /api/auth |
+| Usuários | GET/POST /api/usuarios, PATCH /:id, POST /:id/redefinir-senha |
+| Obras | GET coleção/detalhe, POST, PUT, DELETE /api/obras[/:id] |
+| Funcionários | GET coleção/detalhe, POST, PUT, DELETE /api/funcionarios[/:id] |
+| Alocações | GET coleção/detalhe, POST, PUT, DELETE /api/alocacoes[/:id] |
+| Auditoria | GET /api/auditoria?limite=200, ADMIN |
+
+Os serviços convertem IDs entre o modelo visual e IDs numéricos da API e enviam somente propriedades aceitas. Salários permanecem em texto decimal, sem conversão para ponto flutuante; GESTOR não visualiza salário. Alocados não são apresentados como presença em campo. Progresso, presença e outros dados inexistentes permanecem não informados.
+
+Home e listagens compartilham o DataContext. Mutações invalidam coleções relacionadas: alocações atualizam obras e funcionários; exclusões removem os vínculos retornados pelo servidor. O formulário de obra mostra o endereço real da API e aceita datas opcionais. Campos sem persistência ficam indisponíveis no modo API. Apagar valores de data/salário existentes não é permitido pelo schema atual; a interface informa essa limitação.
+
+Exclusões são físicas, com confirmação explícita de irreversibilidade. Excluir funcionário pode desativar sua conta vinculada; não existe exclusão de usuários. Testes destrutivos devem ser feitos apenas com HTTP controlado ou em banco isolado autorizado.
+
+## Recursos pendentes
+
+Documentos, anexos, EPIs, presença diária, progresso físico, contratos/demissão, justificativas, edição de perfil e envio de notificações não têm endpoints correspondentes. Seus layouts e modelos visuais foram preservados, mas o modo API mostra indisponibilidade e não consulta localStorage para preencher coleções ou contadores. A API de auditoria fornece metadados, não snapshots de valores anteriores/posteriores.
+
+A [matriz de compatibilidade](docs/api-compatibility.md) separa campos disponíveis, derivados e ausentes. O [relatório da integração](docs/api-integration.md) apresenta arquivos, contratos, validações e impedimentos. O [inventário do Figma](docs/figma-implementation.md) documenta os 23 frames e as rotas existentes; eventuais descrições históricas de contratos são complementadas pelos dois documentos de integração.
+
+## Modo mock isolado
+
+```sh
+npm run dev:mock
 ```
+
+Somente `.env.mock`, carregado explicitamente com `dev:mock`, mantém **VITE_AUTH_MODE=mock** e **VITE_DATA_MODE=local**. `.env.development` e `.env.production` usam api/api. Ambos devem estar explicitamente habilitados para os registros locais. O modo API não utiliza fallback para mocks. O mock só pode ser ativado com import.meta.env.DEV.
+
+Defina `VITE_MOCK_EMAIL` com um e-mail sintético em domínio `.test` e `VITE_MOCK_PASSWORD` com um valor inventado antes de rodar `npm run dev:mock`. Use o ambiente do processo ou `.env.mock.local` (ignorado pelo Git). Esses valores são públicos no navegador de desenvolvimento. Para rodar as suítes mock, exporte os mesmos valores no terminal que executará os testes. A sessão mock mantém somente os dados públicos mínimos em sessionStorage; não é uma sessão do backend e não autentica usuários reais. Os serviços locais continuam disponíveis para os fluxos anteriores, sem registros demonstrativos iniciais. Dados pessoais transitórios e anexos não são persistidos em localStorage.
+
+## Build e hospedagem
 
 ```sh
 npm run typecheck
-npm run build
+npm run build:api
+npm run preview
 ```
 
-Não há configuração de lint neste projeto. As validações de navegador existentes usam Playwright instalado separadamente para não alterar as dependências da aplicação:
+`npm run build` e `npm run build:api` usam `.env.production`, com API real e origem relativa por padrão. Sirva `/api` na mesma origem por meio do servidor ou proxy reverso, ou defina `VITE_API_URL=https://api.exemplo.com` durante o build. Configure fallback da SPA para `index.html` e HTTPS, cookies e CORS conforme o backend. Builds de produção bloqueiam o login mock. O projeto não tem configuração de lint.
+
+## Verificações
+
+`npm run test:real-readonly` exige Vite em localhost:5173 e API em localhost:3000; verifica as variáveis efetivamente servidas, saúde/CORS da API e proteção sem sessão, sem login ou mutações de negócio. Não comprova cadastro/persistência autenticados.
+
+`npm run test:integration-config` verifica que desenvolvimento/produção usam API por padrão, simulação exige modo explícito e a origem de desenvolvimento permanece fixa. As suítes mock exigem um servidor iniciado com `--mode mock`, sem interceptar a aplicação real. Para `test:auth`, o preview de bloqueio de mock deve ser compilado separadamente com `vite build --mode mock --outDir reference/validation/dist-disabled` e servido nessa pasta; o build padrão agora usa API.
+
+As suítes de navegador usam Playwright instalado separadamente, sem novas dependências da aplicação:
 
 ```sh
 npm install --prefix reference/validation --no-package-lock --no-save playwright
 ```
 
-No Windows, os testes usam o Edge instalado quando disponível. Em outros ambientes, instale o Chromium com `npm exec --prefix reference/validation -- playwright install chromium`, ou informe o caminho de um navegador em `PLAYWRIGHT_EXECUTABLE_PATH`.
+No Windows usam Edge quando instalado. Em outro sistema, instale Chromium ou configure PLAYWRIGHT_EXECUTABLE_PATH.
 
-Mantenha o servidor de desenvolvimento em `127.0.0.1:5173` com `npm run dev -- --host 127.0.0.1 --port 5173 --strictPort`. Com o build já gerado, execute:
+| Comando | Ambiente |
+|---|---|
+| test:routes, test:data, test:flows | Servidor mock/local; TEST_BASE_URL, padrão 127.0.0.1:5173 |
+| test:auth | Mesmo mock, servidor auth desabilitada em TEST_DISABLED_URL e preview com mock bloqueado em TEST_PRODUCTION_URL |
+| test:users | Modo api/api, TEST_USERS_URL (padrão 127.0.0.1:5186) |
+| test:records-api, test:http-auth, test:api-crud, test:work-deletion | Modo api/api, TEST_RECORDS_URL (padrão 127.0.0.1:5187) |
 
-```sh
-npm run test:routes
-npm run test:data
+Os servidores de testes HTTP devem ter **VITE_API_URL=http://127.0.0.1:3000**, porque os testes interceptam exclusivamente essa origem. Exemplo em terminal PowerShell separado:
+
+```powershell
+$env:VITE_AUTH_MODE = 'api'
+$env:VITE_DATA_MODE = 'api'
+$env:VITE_API_URL = 'http://127.0.0.1:3000'
+npm.cmd run dev -- --host 127.0.0.1 --port 5187 --strictPort
 ```
 
-Para `npm run test:auth`, mantenha também o servidor com mock desabilitado na porta 5174 e o preview de produção na 5175. Exemplo em terminais PowerShell separados:
+Execute então `npm run test:http-auth`, `npm run test:records-api` e `npm run test:api-crud`. Para test:users, use outro servidor equivalente na porta 5186. Para test:auth, exemplos de servidores adicionais:
 
 ```powershell
 $env:VITE_AUTH_MODE = 'disabled'
@@ -62,71 +132,8 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
 ```sh
-npm run preview -- --host 127.0.0.1 --port 5175 --strictPort
-npm run test:auth
+npx vite build --mode mock --outDir reference/validation/dist-disabled
+npm run preview -- --outDir reference/validation/dist-disabled --host 127.0.0.1 --port 5175 --strictPort
 ```
 
-O comando de teste deve ser executado em um terceiro terminal enquanto os servidores continuam ativos. Não é necessário configurar tokens ou credenciais GitHub para executar o frontend.
-
-Os assets originais estão em `public/assets`. A fonte Inter está instalada localmente via `@fontsource/inter`. Os componentes estão em `src/components`, e os tokens de cor em `src/styles.css`.
-
-A referência desktop tem 1440 × 900 px. Capturas de validação, perfis de navegador e metadados temporários do Figma são arquivos locais ignorados pelo Git. O repositório inclui os scripts de teste e todos os assets utilizados pela aplicação.
-
-Rotas com React Router: `/` redireciona para `/login`; `/login` mostra o Login; `/home` mostra a Home baseada no frame `16:4604`. O botão Entrar valida as credenciais no serviço de autenticação e navega para `/home` sem recarregar a página. Todas as rotas internas exigem sessão; quem já está autenticado é redirecionado de `/login` para `/home`.
-
-`/obras` mostra o frame `16:4782`, acessível pela aba Obras da barra lateral e pelo cartão Obras da Home. Visão geral retorna para `/home`; a aba ativa acompanha a rota. Os componentes da listagem estão em `src/components/works`, e seus SVGs originais em `public/assets/works`. A busca permite digitar; filtros, ordenação, inclusão e detalhes aguardam seus próximos frames e não criam telas adicionais.
-
-`/funcionarios` preserva o frame `16:4987`, acessível pela aba Funcionários e pelo cartão da Home. Os componentes estão em `src/components/employees` e os assets em `public/assets/employees`. Resumo e tabela recebem os registros do serviço local, sem dados demonstrativos iniciais.
-
-`/docs` preserva o frame `16:5166`, acessível pela aba Docs e pelo cartão Documentos da Home. Os componentes estão em `src/components/docs`, com os assets originais em `public/assets/docs`. Os alertas, contadores e a tabela usam os registros fornecidos pelo serviço.
-
-`/epi` preserva o frame `16:5351`, acessível pela aba EPI e pelo cartão EPIs da Home. Os componentes estão em `src/components/epi`, e os assets originais em `public/assets/epi`. Indicadores e entregas usam os registros do serviço. Os campos de busca, ações de inclusão, filtros, ordenação, detalhes e paginação mantêm sua apresentação; nenhum formulário novo foi criado.
-
-O formulário permite editar as credenciais e alternar a visibilidade da senha. Recuperação de senha e suporte não estão conectados a serviços. Nenhum backend, autenticação real ou banco de dados foi implementado.
-
-Os componentes da Home estão em `src/components/home`, e os SVGs originais em `public/assets/home`. A Home preserva a composição desktop do Figma; em telas estreitas, há rolagem horizontal.
-
-A validação de navegador está em `reference/verify-routes.mjs`. Para executá-la, instale Playwright separadamente com `npm.cmd install --prefix reference/validation --no-package-lock --no-save playwright` e execute `node reference/verify-routes.mjs`. Ela usa o Edge instalado e verifica login, rotas, navegação sem recarregamento, alternância da senha, assets e erros de navegador.
-
-## Autenticação mock
-
-O serviço mock está em `src/auth/MockAuthService.ts`; somente esse arquivo define a conta de teste. As credenciais não ficam no componente de Login. Consulte `TEST_ACCOUNT` nesse serviço para email e senha.
-
-`.env.development` ativa `VITE_AUTH_MODE=mock`. Para desativar, defina `VITE_AUTH_MODE=disabled` em `.env.development.local` e reinicie o Vite. A fábrica exige `import.meta.env.DEV` além do modo mock: builds de produção bloqueiam login e restauração de sessões mock, inclusive se compilados com `VITE_AUTH_MODE=mock`. O serviço mock é importado dinamicamente apenas em desenvolvimento; sua implementação e senha são excluídas do bundle de produção. O email do perfil visual fixo continua sendo exibido conforme solicitado.
-
-`AuthService.ts` define o contrato assíncrono `login`, `logout` e `getCurrentUser`. `AuthContext.tsx` centraliza `user`, inicialização, login e logout, expostos por `useAuth()`. `ProtectedRoute.tsx` protege as páginas internas e impede que usuários autenticados permaneçam no Login. A sessão salva apenas id, nome e email em `sessionStorage`; a senha não é persistida. Sessões inválidas são descartadas.
-
-Não existe botão de logout no Figma atual. Nenhum foi adicionado. A função `useAuth().logout()` limpa a sessão, atualiza o contexto e provoca o redirecionamento das rotas protegidas para `/login`.
-
-Para autenticação real, implemente `ApiAuthService` conforme `AuthService` e retorne esse adapter em `createAuthService.ts`. Login, contexto e proteções usam somente o contrato e não precisam mudar. O provider também aceita `service` para injeção em testes. Não há implementação de API nesta etapa.
-
-Para testar os seis cenários de autenticação, mantenha o servidor mock na porta 5173, inicie um Vite com `VITE_AUTH_MODE=disabled` na porta 5174, compile a aplicação e inicie `npm.cmd run preview -- --host 127.0.0.1 --port 5175 --strictPort`. Execute `node reference/verify-auth.mjs`. O teste verifica credenciais corretas/incorretas, Enter, loading, rotas protegidas, recarga, logout via contexto, sessões inválidas, modo desativado e produção; o fixture de logout é gerado apenas na pasta de validação ignorada pelo Git.
-
-## Registros locais e integração futura
-
-As entidades identificadas são `Work`, `Employee`, `DocumentRecord` e `EquipmentItem`, tipadas em `src/data/models.ts`. Os exemplos do Figma foram removidos dos componentes e não são carregados como seeds. As quatro coleções começam com `[]` somente quando suas chaves ainda não existem; registros existentes e válidos são preservados.
-
-- `src/data/WorkService.ts`: contrato CRUD assíncrono para obras, baseado em `RecordService` (`getAll`, `getById`, `create`, `update`, `delete` e assinatura opcional de alterações).
-- `src/data/MockWorkService.ts`: implementação local para obras. Reutiliza `LocalRecordService`, também usado nas outras entidades. Novos registros recebem UUID por `crypto.randomUUID()`; editar mantém o identificador.
-- `src/data/createDataServices.ts`: único ponto que escolhe os adapters. Exige desenvolvimento e `VITE_DATA_MODE=local`, configurado em `.env.development`. Produção não utiliza nem inclui a implementação local no bundle; até existir um backend, o serviço de produção informa indisponibilidade.
-- `src/data/DataContext.tsx`: entrega coleções, estado de consulta e `refresh()` aos componentes. Alterações pelo serviço notificam a mesma aba; eventos de `storage` atualizam outras abas. A seleção do cabeçalho e o acompanhamento mostram a primeira obra disponível.
-- `src/components/shared/CollectionState.tsx`: estados separados de carregamento, erro com tentativa novamente e ausência de registros.
-
-Chaves de `localStorage`: `cleanpro.works`, `cleanpro.employees`, `cleanpro.documents`, `cleanpro.equipment`. O serviço valida JSON, campos, limites de progresso e IDs duplicados. Dados inválidos são mantidos no armazenamento e apresentados como erro; não são substituídos silenciosamente por listas vazias. Falhas de acesso ou gravação também são reportadas. Não utilize esse armazenamento para senhas, tokens, documentos anexos ou informações sensíveis. A sessão do login continua separada em `sessionStorage` e seu funcionamento não foi alterado.
-
-`WorkCard` mantém dimensões, ícones, cores e estrutura e recebe `work: Work`. A Home e Obras renderizam um card por registro, com `key={work.id}`. `progress` define a barra em porcentagem; `barWidth` foi removido do modelo. Somente `id` e `name` são obrigatórios em obras. Localização, responsável, progresso, trabalhadores, `attention`, `active` e `inspectionDate` são opcionais; sua ausência aparece como não informada e não gera valores de negócio fictícios.
-
-Contadores de registros e status são derivados das coleções. Média física só aparece com progresso informado em todas as obras. Ativas e vistorias só são contadas quando os respectivos campos foram informados em todos os registros; a data da vistoria usa `AAAA-MM-DD`. Trocas/estoque baixo usam os indicadores fornecidos pelos registros, sem deduzir regras pela condição textual do item. Conformidade permanece `—`, pois ainda não há regra nem dados que permitam calculá-la. Os quatro cards de navegação da Home continuam existindo como atalhos reais, não como registros demonstrativos. Organização e perfil visual fixo permanecem conforme as solicitações anteriores.
-
-Para conectar o backend, implemente `ApiWorkService implements WorkService` e retorne esse adapter na fábrica `createDataServices.ts`. Faça o mesmo com os contratos tipados das demais entidades quando houver endpoints reais. Um adapter pode emitir `subscribe` após mutações para manter as telas atualizadas, ou a integração pode usar `refresh()` do contexto. `Home`, `Works`, `WorkCard` e as linhas das tabelas não precisam conhecer HTTP nem `localStorage`. Também é possível injetar `DataServices` em `DataProvider` para testes. Não foram implementados endpoints ou requisições HTTP.
-
-### Verificação de dados
-
-Com o Vite de desenvolvimento na porta 5173 e o build atualizado:
-
-```sh
-node reference/verify-data.mjs
-node reference/verify-routes.mjs
-```
-
-O teste de dados usa contexto de navegador isolado, nunca preenche o armazenamento do navegador do usuário. Valida coleções vazias, CRUD, UUIDs, dados inválidos preservados, recarga, reabertura da página, alterações na mesma aba e entre abas, cards/progresso dinâmicos, tabelas, estados assíncronos e exclusão do mock de produção. Entradas sintéticas existem apenas no teste e não são dados iniciais da aplicação.
+O preview acima testa especificamente o bloqueio de mock em produção. Os testes HTTP controlados não criam, alteram ou excluem registros no backend. Cadastro único autenticado foi validado na API real com autorização e mantido no banco. Novos testes de escrita e exclusão real exigem autorização específica.

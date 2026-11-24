@@ -1,0 +1,5 @@
+import type { Address } from '../../data/models';
+import { Field } from './FlowPage';
+export const emptyAddress = (): Address => ({ cep: '', street: '', number: '', complement: '', district: '', city: '' });
+export function AddressFields({ value, onChange, required = true, disabled = false }: { value: Address; onChange(value: Address): void; required?: boolean; disabled?: boolean }) { return <div className="grid grid-cols-3 gap-5">{([['cep', 'CEP'], ['street', 'Logradouro'], ['number', 'Número'], ['complement', 'Complemento'], ['district', 'Bairro'], ['city', 'Cidade / UF']] as const).map(([key, label]) => <Field disabled={disabled} key={key} label={label} value={value[key]} onChange={e => onChange({ ...value, [key]: e.target.value })} required={required && key !== 'complement'} maxLength={key === 'cep' ? 9 : 120} pattern={key === 'cep' ? '\\d{5}-?\\d{3}' : undefined} />)}</div>; }
+export const addressLabel = (v: Address) => [v.street && `${v.street}, ${v.number}`, v.complement, v.district, v.city, v.cep].filter(Boolean).join(' · ');

@@ -2,14 +2,15 @@ import { AuthError, type AuthService, type AuthUser, type LoginCredentials } fro
 import { MOCK_SESSION_KEY as SESSION_KEY, clearMockSession } from './mockSession';
 const TEST_ACCOUNT = {
   id: 'mock-admin',
-  email: 'admin@teste.com',
-  password: 'Admin123!',
+  email: (import.meta.env.VITE_MOCK_EMAIL ?? '').trim().toLowerCase(),
+  password: import.meta.env.VITE_MOCK_PASSWORD ?? '',
   name: 'Administrador',
 };
 const unavailable = 'Autenticação indisponível neste ambiente.';
 export class MockAuthService implements AuthService {
   private get enabled() {
-    return import.meta.env.DEV && import.meta.env.VITE_AUTH_MODE === 'mock';
+    return import.meta.env.DEV && import.meta.env.VITE_AUTH_MODE === 'mock' &&
+      TEST_ACCOUNT.email.endsWith('.test') && Boolean(TEST_ACCOUNT.password);
   }
   async login({ email, password }: LoginCredentials): Promise<AuthUser> {
     if (!this.enabled) {
@@ -20,8 +21,8 @@ export class MockAuthService implements AuthService {
     if (email.trim().toLowerCase() !== TEST_ACCOUNT.email || password !== TEST_ACCOUNT.password) {
       throw new AuthError('E-mail ou senha incorretos.');
     }
-    const user: AuthUser = { id: TEST_ACCOUNT.id, email: TEST_ACCOUNT.email, name: TEST_ACCOUNT.name };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    const user: AuthUser = { id: TEST_ACCOUNT.id, email: TEST_ACCOUNT.email, name: TEST_ACCOUNT.name, papel: 'ADMIN', precisaTrocarSenha: false };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: user.id, email: user.email, name: user.name }));
     return user;
   }
   async logout(): Promise<void> {
@@ -37,7 +38,7 @@ export class MockAuthService implements AuthService {
     try {
       const user: unknown = JSON.parse(saved);
       if (typeof user === 'object' && user !== null && 'id' in user && 'email' in user && 'name' in user && user.id === TEST_ACCOUNT.id && user.email === TEST_ACCOUNT.email && user.name === TEST_ACCOUNT.name && Object.keys(user).length === 3) {
-        return { id: TEST_ACCOUNT.id, email: TEST_ACCOUNT.email, name: TEST_ACCOUNT.name };
+        return { id: TEST_ACCOUNT.id, email: TEST_ACCOUNT.email, name: TEST_ACCOUNT.name, papel: 'ADMIN', precisaTrocarSenha: false };
       }
     } catch { /* Sessões inválidas são descartadas. */ }
     clearMockSession();
