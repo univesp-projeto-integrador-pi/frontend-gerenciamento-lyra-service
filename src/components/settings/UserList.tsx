@@ -1,0 +1,32 @@
+import { useState } from 'react';
+import { AuthError } from '../../auth/AuthService';
+import type { UserService, Usuario, UserRole } from '../../users/UserService';
+import { USER_ROLES } from '../../users/UserService';
+import { roleLabels } from './RolePermissions';
+import { Pagination } from '../shared/FlowPage';
+import { initials } from '../shared/initials';
+const scopeLabels: Record<UserRole, string[]> = { ADMIN: ['Visão geral', 'Funcionários', 'Obras', 'Configurações'], GESTOR: ['Visão geral', 'Funcionários (consulta)', 'Obras'], FUNCIONARIO: ['Próprio cadastro', 'Obras vinculadas'] };
+export function UserList({ users, service, onRefresh, currentId }: { users: Usuario[]; service: UserService; onRefresh(): Promise<void>; currentId: string }) {
+  const [search, setSearch] = useState(''); const [role, setRole] = useState(''); const [page, setPage] = useState(0);
+  const filtered = users.filter(v => `${v.email} ${v.funcionario?.nome ?? ''}`.toLowerCase().includes(search.toLowerCase()) && (!role || v.papel === role));
+  const [busy, setBusy] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [password, setPassword] = useState('');
+  async function mutate(id: number, operation: () => Promise<unknown>) {
+    if (busy !== null) return;
+    setBusy(id); setError(''); setNotice('');
+    try { await operation(); setPassword(''); setResetId(null); setNotice('Usuário atualizado.'); await onRefresh(); }
+    catch (cause) { setError(cause instanceof AuthError ? cause.message : 'Não foi possível atualizar o usuário.'); }
+    finally { setBusy(null); }
+  }
+  return <section className="settings-panel" aria-labelledby="user-list-title"><h2 id="user-list-title" className="text-lg font-bold">Usuários cadastrados</h2>
+    {error && <p role="alert" className="text-[13px] text-[#c33d3d]">{error}</p>}{notice && <p role="status" className="text-[13px] text-[#167a52]">{notice}</p>}
+    <div className="flex items-center gap-3"><input aria-label="Buscar usuário" className="settings-input flex-1!" placeholder="Buscar por nome ou e-mail" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /><div className="flex gap-2">{[['', 'Todos'], ...USER_ROLES.map(v => [v, roleLabels[v]])].map(([value, label]) => <button type="button" key={value} aria-pressed={role === value} onClick={() => { setRole(value); setPage(0); }} className={`rounded-full border px-3 py-2 text-xs ${role === value ? 'border-primary bg-primary text-white' : 'border-[#dce4ed] text-muted'}`}>{label}</button>)}</div></div>
+    {!users.length ? <p role="status" className="text-[13px] text-muted">Nenhum usuário cadastrado na fonte consultada.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-[13px]"><thead className="bg-[#f5f7fa] text-xs text-muted"><tr>{['Usuário', 'Papel', 'Acesso por página', 'Status', 'Ações'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead><tbody>{filtered.slice(page * 8, page * 8 + 8).map(usuario => <tr key={usuario.id} className="border-b border-[#e8edf3]"><td className="p-3"><div className="flex items-center gap-3"><span className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[#e8f2fc] text-xs font-bold text-primary">{initials(usuario.funcionario?.nome || usuario.email)}</span><div><p className="font-semibold">{usuario.funcionario?.nome || usuario.email}{String(usuario.id) === currentId && <span className="flow-badge ml-2">Você</span>}</p><p className="mt-1 text-xs text-muted">{usuario.email}</p>{usuario.precisaTrocarSenha && <p className="mt-1 text-xs text-muted">Troca de senha obrigatória</p>}</div></div></td><td className="p-3"><select aria-label={'Papel de ' + usuario.email} disabled={busy !== null || String(usuario.id) === currentId} value={usuario.papel} onChange={event => { void mutate(usuario.id, () => service.update(usuario.id, { papel: event.target.value as UserRole })); }} className="settings-input">{USER_ROLES.map(role => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></td><td className="p-3"><div className="flex max-w-[250px] flex-wrap gap-1">{scopeLabels[usuario.papel].map(label => <span key={label} className="rounded border border-[#dce4ed] bg-[#f5f7fa] px-1.5 py-0.5 text-[11px]">{label}</span>)}</div></td><td className="p-3">{usuario.ativo ? 'Ativo' : 'Inativo'}</td><td className="p-3"><div className="flex gap-3"><button disabled={busy !== null || String(usuario.id) === currentId} onClick={() => { void mutate(usuario.id, () => service.update(usuario.id, { ativo: !usuario.ativo })); }} className="font-semibold text-primary">{usuario.ativo ? 'Desativar' : 'Ativar'}</button><button disabled={busy !== null || String(usuario.id) === currentId} onClick={() => { setResetId(usuario.id); setPassword(''); setError(''); }} className="font-semibold text-primary">Redefinir senha</button></div></td></tr>)}</tbody></table></div>}
+    {users.length > 0 && <><Pagination page={page} total={filtered.length} onChange={setPage} />{!filtered.length && <p className="text-sm text-muted">Nenhum usuário encontrado.</p>}</>}
+    <div className="rounded-[14px] border border-[#dce4ed] p-5"><h3 className="mb-3 text-sm font-bold">Definição de papéis</h3>{USER_ROLES.map(role => <p className="mb-2 text-xs text-muted" key={role}><span className="flow-badge mr-3">{roleLabels[role]}</span>{role === 'ADMIN' ? 'Gerencia usuários e cadastros; acesso sujeito ao backend.' : role === 'GESTOR' ? 'Consulta funcionários; gerencia obras e alocações.' : 'Consulta o próprio cadastro e as obras em que está alocado.'}</p>)}</div>
+    {resetId !== null && <form className="flex items-end gap-3 border-t border-[#e8edf3] pt-4" onSubmit={event => { event.preventDefault(); void mutate(resetId, () => service.resetPassword(resetId, password)); }}><label className="settings-field flex-1">Nova senha temporária<input className="settings-input" autoComplete="new-password" type="password" minLength={10} maxLength={128} required value={password} disabled={busy !== null} onChange={event => setPassword(event.target.value)} /></label><button className="settings-button" disabled={busy !== null}>Redefinir</button><button type="button" className="settings-button" onClick={() => { setResetId(null); setPassword(''); }} disabled={busy !== null}>Cancelar</button></form>}
+  </section>;
+}

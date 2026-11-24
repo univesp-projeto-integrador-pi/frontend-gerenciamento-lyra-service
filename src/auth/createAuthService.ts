@@ -13,6 +13,10 @@ class DisabledAuthService implements AuthService {
   }
 }
 export async function createAuthService(): Promise<AuthService> {
+  if (import.meta.env.VITE_AUTH_MODE === 'api') {
+    const { ApiAuthService } = await import('./ApiAuthService');
+    return new ApiAuthService();
+  }
   if (import.meta.env.DEV && import.meta.env.VITE_AUTH_MODE === 'mock') {
     const { MockAuthService } = await import('./MockAuthService');
     return new MockAuthService();

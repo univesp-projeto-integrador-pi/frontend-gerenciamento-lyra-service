@@ -1,9 +1,7 @@
-import { launchBrowser } from './test-browser.mjs';
+import { launchBrowser, mockCredentials } from './test-browser.mjs';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
-const authSource = readFileSync('src/auth/MockAuthService.ts', 'utf8');
-const email = authSource.match(/email: '([^']+)'/)[1];
-const password = authSource.match(/password: '([^']+)'/)[1];
+const { email, password } = mockCredentials();
 const browser = await launchBrowser();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
@@ -54,7 +52,7 @@ try {
   assert.equal(await page.evaluate(async () => { try { await window.__dataServices.works.create({ name: 'Inválida', progress: 101 }); return false; } catch { return true; } }), true);
   await page.getByRole('link', { name: 'Obras', exact: true }).click();
   await page.waitForURL('**/obras');
-  await page.getByRole('heading', { name: 'Obra atualizada' }).waitFor();
+  await page.getByRole('heading', { name: 'Obra atualizada', level: 3 }).waitFor();
   assert.equal(await page.getByRole('heading', { level: 3 }).count(), 2);
   await page.screenshot({ path: 'reference/works-data.png', fullPage: true });
   console.log('Checking cross-tab changes and invalid storage');

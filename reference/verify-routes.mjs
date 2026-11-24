@@ -1,5 +1,4 @@
-import { launchBrowser } from './test-browser.mjs';
-import { readFileSync } from 'node:fs';
+import { launchBrowser, mockCredentials } from './test-browser.mjs';
 import assert from 'node:assert/strict';
 const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -16,9 +15,9 @@ try {
   assert.equal(await page.locator('#password').getAttribute('type'), 'text');
   await page.getByRole('button', { name: 'Ocultar senha' }).click();
   assert.equal(await page.locator('#password').getAttribute('type'), 'password');
-  const source = readFileSync('src/auth/MockAuthService.ts', 'utf8');
-  await page.locator('#email').fill(source.match(/email: '([^']+)'/)[1]);
-  await page.locator('#password').fill(source.match(/password: '([^']+)'/)[1]);
+  const { email, password } = mockCredentials();
+  await page.locator('#email').fill(email);
+  await page.locator('#password').fill(password);
   await page.evaluate(() => { window.__marker = 'same-document'; });
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.waitForURL('**/home');
@@ -32,7 +31,7 @@ try {
     await page.getByRole('link', { name: route.label, exact: true }).click();
     await page.waitForURL('**' + route.route);
     assert.equal(await page.evaluate(() => window.__marker), 'same-document');
-    assert.equal(await page.getByRole('link', { name: route.label, exact: true }).getAttribute('aria-current'), 'page');
+    await page.getByRole('link', { name: route.label, exact: true }).and(page.locator('[aria-current=page]')).waitFor();
     await page.getByText(route.empty, { exact: true }).waitFor();
     const images = await page.locator('img').evaluateAll(async elements => {
       await Promise.all(elements.map(element => element.decode()));

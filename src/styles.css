@@ -6,6 +6,16 @@
   --color-muted: #607086;
 }
 body { margin: 0; font-family: var(--font-sans); }
+.settings-screen * { line-height: 1.45; }
+.settings-panel { display: flex; flex-direction: column; gap: 20px; padding: 20px; background: white; border: 1px solid #dce4ed; border-radius: 14px; }
+.settings-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+.settings-input { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #dce4ed; border-radius: 8px; background: white; color: #132238; font: inherit; font-size: 14px; font-weight: 400; }
+.settings-input:focus-visible { outline: 2px solid #0b5cad; outline-offset: 2px; }
+.settings-input[aria-invalid="true"] { border-color: #c33d3d; }
+.settings-button { display: inline-flex; height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid #dce4ed; border-radius: 10px; background: white; color: #0b5cad; font-size: 14px; font-weight: 600; }
+.settings-screen button:disabled { cursor: not-allowed; opacity: .65; }
+.settings-tab { padding: 13px 20px; font-size: 14px; line-height: normal; }
+.permission-columns { display: grid; grid-template-columns: minmax(220px, 380px) repeat(4, minmax(100px, 150px)); gap: 14px; min-width: 920px; }
 .home-screen * { line-height: 1.45; }
 .works-screen * { line-height: 1.45; }
 .employees-screen * { line-height: 1.45; }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Sidebar } from '../home/Sidebar';
 import { HomeHeader, PageHeading } from '../home/HomeHeader';
 import { HomeIcon } from '../home/HomeIcon';
@@ -6,6 +7,7 @@ import { DocumentTable } from './DocumentTable';
 import { useData } from '../../data/DataContext';
 import { countLabel } from '../../data/summary';
 export function Documents() {
+  const [search, setSearch] = useState(''); const [status, setStatus] = useState('');
   const { documents } = useData();
   const total = countLabel(documents);
   const expired = countLabel(documents, record => record.status === 'Vencido');
@@ -19,18 +21,18 @@ export function Documents() {
         <section aria-label="Resumo dos documentos" className="flex items-center gap-4 rounded-[14px] bg-[#fff3dc] p-[22px]">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-[10px]"><HomeIcon name="imgSimbolo11" source="docs" /></span>
           <div className="flex min-w-0 flex-1 flex-col gap-1"><h2 className="text-xl font-bold">{pending} documentos exigem atenção</h2><p className="text-[13px] text-muted">{expired} vencidos · {attention} em atenção</p></div>
-          <button type="button" aria-label="Ver documentos que exigem atenção"><HomeIcon name="imgSimbolo12" source="docs" /></button>
+          <button type="button" aria-label="Ver documentos que exigem atenção" onClick={() => setStatus('pendentes')}><HomeIcon name="imgSimbolo12" source="docs" /></button>
         </section>
         <div className="flex items-center gap-4">
-          <div className="flex h-[46px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] border border-[#dce4ed] bg-white px-[14px]"><HomeIcon name="imgSimbolo13" source="docs" /><input aria-label="Buscar documento ou colaborador" placeholder="Buscar documento ou colaborador" className="min-w-0 flex-1 text-sm text-muted outline-none placeholder:text-[#8a98aa]" /></div>
+          <div className="flex h-[46px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] border border-[#dce4ed] bg-white px-[14px]"><HomeIcon name="imgSimbolo13" source="docs" /><input value={search} onChange={e => setSearch(e.target.value)} aria-label="Buscar documento ou colaborador" placeholder="Buscar documento ou colaborador" className="min-w-0 flex-1 text-sm text-muted outline-none placeholder:text-[#8a98aa]" /></div>
           <div className="flex items-start gap-2" aria-label="Filtros dos documentos">
-            <button type="button" aria-pressed="true" className="flex h-[38px] items-center rounded-full border border-primary bg-primary px-[17px] text-[13px] font-semibold text-white">Todos {total}</button>
-            <button type="button" className="flex h-[38px] items-center rounded-full border border-[#dce4ed] bg-white px-[17px] text-[13px] font-medium text-[#c33d3d]">Vencidos {expired}</button>
-            <button type="button" className="flex h-[38px] items-center rounded-full border border-[#dce4ed] bg-white px-[17px] text-[13px] font-medium text-[#d97706]">A vencer {attention}</button>
+            <button type="button" aria-pressed={status === ''} onClick={() => setStatus('')} className="flex h-[38px] items-center rounded-full border border-primary bg-primary px-[17px] text-[13px] font-semibold text-white">Todos {total}</button>
+            <button type="button" onClick={() => setStatus('Vencido')} aria-pressed={status === 'Vencido'} className="flex h-[38px] items-center rounded-full border border-[#dce4ed] bg-white px-[17px] text-[13px] font-medium text-[#c33d3d]">Vencidos {expired}</button>
+            <button type="button" onClick={() => setStatus('Atenção')} aria-pressed={status === 'Atenção'} className="flex h-[38px] items-center rounded-full border border-[#dce4ed] bg-white px-[17px] text-[13px] font-medium text-[#d97706]">A vencer {attention}</button>
           </div>
-          <button type="button" className="flex h-[46px] items-center justify-center gap-2 rounded-[10px] border border-[#dce4ed] bg-white px-[18px] text-sm font-semibold text-primary"><HomeIcon name="imgSimbolo14" source="docs" />Filtros</button>
+          <button type="button" onClick={() => setStatus(v => v === 'Válido' ? '' : 'Válido')} title="Somente válidos" className="flex h-[46px] items-center justify-center gap-2 rounded-[10px] border border-[#dce4ed] bg-white px-[18px] text-sm font-semibold text-primary"><HomeIcon name="imgSimbolo14" source="docs" />Filtros</button>
         </div>
-        <DocumentTable />
+        <DocumentTable key={`${search}:${status}`} search={search} status={status} />
       </main>
     </div>
   </div>;

@@ -4,7 +4,10 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.api
 !.env.development
+!.env.production
+!.env.mock
 *.local
 *.log
 .DS_Store
@@ -15,3 +18,4 @@ Thumbs.db
 reference/*
 !reference/verify-*.mjs
 !reference/test-browser.mjs
+!reference/api-crud-fixture.mjs
